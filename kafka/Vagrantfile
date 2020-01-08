@@ -1,0 +1,30 @@
+# Variables
+node_count = 3
+vm_image = "bento/centos-7.4"
+vm_name =  "kafka"
+
+Vagrant.configure("2") do |config|
+    (1..node_count).each do |node_id|
+        config.vm.define "#{vm_name}""#{node_id}" do | host |
+            host.vm.box = vm_image
+            host.vm.hostname = "#{vm_name}""#{node_id}"
+            if node_id < 10 then
+                host.vm.network "private_network", ip: "192.168.10.5#{node_id}"
+            else
+                puts "Error in allocating IP"
+            end
+            host.vm.provider :virtualbox do |vb|
+                vb.customize ["modifyvm", :id, "--memory", "1024"]
+                vb.customize ["modifyvm", :id, "--cpus", "1"]
+            end
+            host.vm.provision "shell", inline: <<-SHELL
+                sed -i 's/SELINUX=permissive/SELINUX=disabled/1' /etc/selinux/config
+                sed -i 's/SELINUX=enforcing/SELINUX=disabled/1' /etc/selinux/config
+                systemctl disable firewalld
+                sed -i 's/#PermitRootLogin/PermitRootLogin/1' /etc/ssh/sshd_config
+                echo "root" | passwd --stdin root
+                yum install -y java-1.8.0-openjdk-devel.x86_64 java-1.8.0-openjdk tree lsof
+            SHELL
+        end
+    end
+end
